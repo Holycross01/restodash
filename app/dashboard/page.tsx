@@ -19,6 +19,14 @@ export default function Dashboard() {
     const [menu, setMenu] = useState<MenuItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [showAdd, setShowAdd] = useState(false)
+    const [addForm, setAddForm] = useState({
+        name: "",
+        description: "",
+        price: "",
+        category: "",
+        isAvailable: true,
+    })
     const [editingItem, setEditingItem] = useState<MenuItem | null>(null)
     const [form, setForm] = useState({
         name: "",
@@ -119,7 +127,27 @@ export default function Dashboard() {
 
 
     }
+
+    const handleAdd = async (e: React.FormEvent) => {
+        e.preventDefault()
+        try {
+            const response = await api.post(`/api/menu`, { ...addForm, price: Number(addForm.price) })
+            console.log("handleAdd response", response)
+            setMenu((prev) => [...prev, response.data.data])
+            setShowAdd(false)
+            setAddForm({ name: "", description: "", price: "", category: "", isAvailable: true })
+            alert(response.data.message || "Item added")
+
+        }
+        catch (error) {
+            console.error("error", error)
+            if (axios.isAxiosError(error)) {
+                alert(error.response?.data?.message || "Could not add the item")
+            }
+        }
+    }
     console.log("editingItem:", editingItem);
+    console.log("addForm:", addForm);
 
     return (
         <div className="min-h-screen bg-stone-100 text-stone-900">
@@ -154,6 +182,14 @@ export default function Dashboard() {
                         </p>
                     </div>
 
+                    <button
+                        onClick={() => setShowAdd(true)}
+                        className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:border-emerald-700 hover:text-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 cursor-pointer"
+                    >
+                        Add item
+                    </button>
+
+
                     {!loading && !error && (
                         <dl className="flex divide-x divide-stone-300 overflow-hidden rounded-xl border border-stone-200 bg-white">
                             <div className="px-5 py-3">
@@ -176,12 +212,77 @@ export default function Dashboard() {
                     )}
                 </div>
 
+                {showAdd && (
+                    <form onSubmit={handleAdd} className="mb-8 rounded-xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6 w-100">
+                        <h3 className="text-xl font-semibold tracking-tight">New menu item</h3>
+
+                        <label className="mt-5 block text-sm font-medium text-stone-700">
+                            Name
+                            <input
+                                value={addForm.name}
+                                onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                                className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                            />
+                        </label>
+                        <label className="mt-5 block text-sm font-medium text-stone-700">
+                            Description
+                            <input
+                                value={addForm.description}
+                                onChange={(e) => setAddForm({ ...addForm, description: e.target.value })}
+                                className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                            />
+                        </label>
+                        <label className="mt-5 block text-sm font-medium text-stone-700">
+                            Category
+                            <input
+                                value={addForm.category}
+                                onChange={(e) => setAddForm({ ...addForm, category: e.target.value })}
+                                className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                            />
+                        </label>
+                        <label className="mt-5 block text-sm font-medium text-stone-700">
+                            Price
+                            <input
+                                type="number"
+                                value={addForm.price}
+                                onChange={(e) => setAddForm({ ...addForm, price: e.target.value })}
+                                className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                            />
+                        </label>
+                        <label className="mt-5 flex items-center gap-3 text-sm font-medium text-stone-700">
+                            Available to customers
+                            <input
+                                type="checkbox"
+                                checked={addForm.isAvailable}
+                                onChange={(e) => setAddForm({ ...addForm, isAvailable: e.target.checked })}
+                                className="h-4 w-4 accent-emerald-800 rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                            />
+                        </label>
+
+                        <div className="mt-5 flex gap-3">
+                            <button
+                                type="submit"
+                                className="rounded-lg border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 cursor-pointer"
+                            >
+                                Add to menu
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowAdd(false)}
+                                className="rounded-lg border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                )}
                 {/* Edit panel */}
                 {editingItem && (
                     <form
                         onSubmit={handleUpdate}
-                        className="mb-8 overflow-hidden rounded-xl border border-emerald-200 bg-white shadow-sm"
+                        className="mb-8 overflow-hidden rounded-xl border border-emerald-200 bg-white shadow-sm w-100"
                     >
+
                         <div className="border-l-4 border-emerald-800 p-5 sm:p-6">
                             <p className="text-sm text-stone-500">Editing</p>
                             <h3 className="text-xl font-semibold tracking-tight">{editingItem.name}</h3>
@@ -193,6 +294,41 @@ export default function Dashboard() {
                                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                                     className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 placeholder:text-stone-400 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
                                 />
+                            </label>
+                            <label className="mt-5 block text-sm font-medium text-stone-700">
+                                Description
+                                <input
+                                    value={form.description}
+                                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                                    className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 placeholder:text-stone-400 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                                />
+                            </label>
+                            <label className="mt-5 block text-sm font-medium text-stone-700">
+                                category
+                                <input
+                                    value={form.category}
+                                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                                    className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 placeholder:text-stone-400 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                                />
+                            </label>
+                            <label className="mt-5 block text-sm font-medium text-stone-700">
+                                Price
+                                <input
+                                    type="number"
+                                    value={form.price}
+                                    onChange={(e) => setForm({ ...form, price: e.target.value })}
+                                    className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 placeholder:text-stone-400 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                                />
+                            </label>
+                            <label className="mt-5 flex items-center gap-3 text-sm font-medium text-stone-700">
+                                Available to customers
+                                <input
+                                    type="checkbox"
+                                    checked={form.isAvailable}
+                                    onChange={(e) => setForm({ ...form, isAvailable: e.target.checked })}
+                                    className="h-4 w-4 rounded border-stone-300 accent-emerald-800"
+                                />
+
                             </label>
 
                             <div className="mt-5 flex flex-wrap gap-3">
@@ -295,6 +431,8 @@ export default function Dashboard() {
                                             </td>
                                             <td className="px-5 py-4">
                                                 <div className="flex justify-end gap-2">
+
+
                                                     <button
                                                         onClick={() => handleEdit(item)}
                                                         className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:border-emerald-700 hover:text-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 cursor-pointer"
