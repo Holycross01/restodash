@@ -19,6 +19,7 @@ export default function Dashboard() {
     const [menu, setMenu] = useState<MenuItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [imageFile, setImageFile] = useState<File | null>(null)
     const [showAdd, setShowAdd] = useState(false)
     const [addForm, setAddForm] = useState({
         name: "",
@@ -133,9 +134,18 @@ export default function Dashboard() {
         try {
             const response = await api.post(`/api/menu`, { ...addForm, price: Number(addForm.price) })
             console.log("handleAdd response", response)
+            if (imageFile) {
+                const formData = new FormData()
+                formData.append("image", imageFile)
+                console.log("formData image:", formData.get("image"))
+                const imageResponse = await api.put(`/api/menu/${response.data.data.id}/image`, formData,
+                    { headers: { "Content-Type": "multipart/form-data" } })
+                console.log("image response", imageResponse)
+            }
             setMenu((prev) => [...prev, response.data.data])
             setShowAdd(false)
             setAddForm({ name: "", description: "", price: "", category: "", isAvailable: true })
+            setImageFile(null)
             alert(response.data.message || "Item added")
 
         }
@@ -148,6 +158,7 @@ export default function Dashboard() {
     }
     console.log("editingItem:", editingItem);
     console.log("addForm:", addForm);
+    console.log("imageFile:", imageFile);
 
     return (
         <div className="min-h-screen bg-stone-100 text-stone-900">
@@ -256,6 +267,16 @@ export default function Dashboard() {
                                 checked={addForm.isAvailable}
                                 onChange={(e) => setAddForm({ ...addForm, isAvailable: e.target.checked })}
                                 className="h-4 w-4 accent-emerald-800 rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                            />
+                        </label>
+
+                        <label className="mt-5 block text-sm font-medium text-stone-700">
+                            Picture
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                                className="mt-1.5 block w-full text-sm text-stone-600"
                             />
                         </label>
 
