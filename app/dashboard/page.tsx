@@ -6,12 +6,14 @@ import api from "@/lib/api";
 import axios from "axios";
 
 type MenuItem = {
-    id: string;
+    id?: string;
+    _id?: string;
     name: string;
     description: string;
     price: number;
     category: string;
     isAvailable: boolean;
+    image?: string;
 };
 
 export default function Dashboard() {
@@ -49,7 +51,11 @@ export default function Dashboard() {
             try {
                 const response = await api.get("/api/menu");
                 console.log("datas: ", response)
-                setMenu(response.data.data);
+                const items = (response.data.data || []).map((it: any) => ({
+                    ...it,
+                    id: it.id || it._id,
+                }));
+                setMenu(items);
             } catch {
                 setError("Could not load the menu");
             } finally {
@@ -70,20 +76,18 @@ export default function Dashboard() {
             return;
         try {
             const response = await api.delete(`/api/menu/${id}`)
-            setMenu((prev) => prev.filter((item) => item.id !== id))
+            setMenu((prev) => prev.filter((item) => (item.id || item._id) !== id))
             console.log("Delete response", response)
             alert(response.data.message);
 
         } catch (error) {
             console.error(error)
 
-
             if (axios.isAxiosError(error)) {
                 console.log("status:", error.response?.status);
                 console.log("server message:", error.response?.data?.message);
             }
         }
-
     }
 
     const handleEdit = (item: MenuItem) => {
@@ -95,20 +99,20 @@ export default function Dashboard() {
             category: item.category,
             isAvailable: item.isAvailable,
         })
-
     }
 
     const handleUpdate = async (e: React.FormEvent) => {
         e.preventDefault()
-        console.log("save clicked", editingItem?.id, form);
-        if (!editingItem)
+        const targetId = editingItem?.id || editingItem?._id;
+        console.log("save clicked", targetId, form);
+        if (!targetId)
             return;
         try {
-            const response = await api.put(`/api/menu/${editingItem.id}`, { ...form, price: Number(form.price) })
+            const response = await api.put(`/api/menu/${targetId}`, { ...form, price: Number(form.price) })
 
             setMenu((prev) =>
                 prev.map((item) =>
-                    item.id === editingItem.id
+                    (item.id || item._id) === targetId
                         ? { ...item, ...form, price: Number(form.price) }
                         : item
                 )
@@ -123,10 +127,7 @@ export default function Dashboard() {
             if (axios.isAxiosError(error)) {
                 alert(error.response?.data?.message || "Could not update the item")
             }
-
         }
-
-
     }
 
     const handleAdd = async (e: React.FormEvent) => {
@@ -134,15 +135,35 @@ export default function Dashboard() {
         try {
             const response = await api.post(`/api/menu`, { ...addForm, price: Number(addForm.price) })
             console.log("handleAdd response", response)
-            if (imageFile) {
+            const newItem = response.data.data;
+            const targetId = newItem?.id || newItem?._id;
+            let finalItem = { ...newItem, id: targetId };
+
+            if (imageFile && targetId) {
                 const formData = new FormData()
                 formData.append("image", imageFile)
                 console.log("formData image:", formData.get("image"))
-                const imageResponse = await api.put(`/api/menu/${response.data.data.id}/image`, formData,
-                    { headers: { "Content-Type": "multipart/form-data" } })
+
+                const imageResponse = await api.put(
+                    `/api/menu/${targetId}/image`,
+                    formData,
+                    {
+                        headers: {
+                            "Content-Type": undefined,
+                        },
+                    }
+                )
                 console.log("image response", imageResponse)
+                if (imageResponse.data?.data) {
+                    const imgData = imageResponse.data.data;
+                    finalItem = {
+                        ...finalItem,
+                        ...(typeof imgData === "object" ? imgData : { image: imgData }),
+                        id: targetId,
+                    };
+                }
             }
-            setMenu((prev) => [...prev, response.data.data])
+            setMenu((prev) => [...prev, finalItem])
             setShowAdd(false)
             setAddForm({ name: "", description: "", price: "", category: "", isAvailable: true })
             setImageFile(null)
@@ -152,7 +173,13 @@ export default function Dashboard() {
         catch (error) {
             console.error("error", error)
             if (axios.isAxiosError(error)) {
-                alert(error.response?.data?.message || "Could not add the item")
+                console.error("Server status:", error.response?.status);
+                console.error("Server data:", error.response?.data);
+                console.error("Server data stringified:", JSON.stringify(error.response?.data));
+                const serverMsg = error.response?.data?.message || error.response?.data?.error || JSON.stringify(error.response?.data) || error.message;
+                alert(`Error (${error.response?.status}): ${serverMsg}`);
+            } else {
+                alert("Could not add the item");
             }
         }
     }
@@ -276,6 +303,115 @@ export default function Dashboard() {
                 </div>
             )}
 
+            {/* Add Item Modal (Overlay in front of the page) */}
+            {showAdd && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm "
+                    onClick={() => setShowAdd(false)}
+                >
+                    <form
+                        onSubmit={handleAdd}
+                        onClick={(e) => e.stopPropagation()}
+                        className="my-8 w-full max-w-lg overflow-hidden rounded-xl border border-stone-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+                    >
+                        <div className="border-l-4 border-emerald-800 p-5 sm:p-6">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800">New Item</p>
+                                    <h3 className="mt-1 text-xl font-semibold tracking-tight text-stone-900">Add to menu</h3>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAdd(false)}
+                                    className="rounded-lg p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-600 cursor-pointer"
+                                    aria-label="Close modal"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <label className="mt-5 block text-sm font-medium text-stone-700">
+                                Name
+                                <input
+                                    value={addForm.name}
+                                    onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                                    placeholder="e.g. Fried Rice and Chicken"
+                                    className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 placeholder:text-stone-400 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                                    required
+                                />
+                            </label>
+                            <label className="mt-5 block text-sm font-medium text-stone-700">
+                                Description
+                                <input
+                                    value={addForm.description}
+                                    onChange={(e) => setAddForm({ ...addForm, description: e.target.value })}
+                                    placeholder="Brief description of the dish"
+                                    className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 placeholder:text-stone-400 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                                />
+                            </label>
+                            <label className="mt-5 block text-sm font-medium text-stone-700">
+                                Category
+                                <input
+                                    value={addForm.category}
+                                    onChange={(e) => setAddForm({ ...addForm, category: e.target.value })}
+                                    placeholder="e.g. Main dish, Drinks, Starters"
+                                    className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 placeholder:text-stone-400 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                                />
+                            </label>
+                            <label className="mt-5 block text-sm font-medium text-stone-700">
+                                Price
+                                <input
+                                    type="number"
+                                    value={addForm.price}
+                                    onChange={(e) => setAddForm({ ...addForm, price: e.target.value })}
+                                    placeholder="e.g. 5000"
+                                    className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 placeholder:text-stone-400 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                                    required
+                                />
+                            </label>
+                            <label className="mt-5 flex items-center gap-3 text-sm font-medium text-stone-700">
+                                Available to customers
+                                <input
+                                    type="checkbox"
+                                    checked={addForm.isAvailable}
+                                    onChange={(e) => setAddForm({ ...addForm, isAvailable: e.target.checked })}
+                                    className="h-4 w-4 rounded border-stone-300 accent-emerald-800"
+                                />
+                            </label>
+
+                            <label className="mt-5 block text-sm font-medium text-stone-700">
+                                Picture
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                                    className="mt-1.5 block w-full text-sm text-stone-600 file:mr-3 file:rounded-lg file:border-0 file:bg-stone-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-stone-700 hover:file:bg-stone-200"
+                                />
+                            </label>
+
+                            <div className="mt-6 flex flex-wrap justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAdd(false)}
+                                    className="rounded-lg border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="rounded-lg bg-emerald-800 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 cursor-pointer"
+                                >
+                                    Add to menu
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            )}
+
             <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
                 {/* Page heading + summary */}
                 <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
@@ -288,8 +424,12 @@ export default function Dashboard() {
 
                     <button
                         onClick={() => setShowAdd(true)}
-                        className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:border-emerald-700 hover:text-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-800 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 cursor-pointer"
                     >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
                         Add item
                     </button>
 
@@ -314,81 +454,6 @@ export default function Dashboard() {
                         </dl>
                     )}
                 </div>
-
-                {showAdd && (
-                    <form onSubmit={handleAdd} className="mb-8 rounded-xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6 w-100">
-                        <h3 className="text-xl font-semibold tracking-tight">New menu item</h3>
-
-                        <label className="mt-5 block text-sm font-medium text-stone-700">
-                            Name
-                            <input
-                                value={addForm.name}
-                                onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
-                                className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
-                            />
-                        </label>
-                        <label className="mt-5 block text-sm font-medium text-stone-700">
-                            Description
-                            <input
-                                value={addForm.description}
-                                onChange={(e) => setAddForm({ ...addForm, description: e.target.value })}
-                                className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
-                            />
-                        </label>
-                        <label className="mt-5 block text-sm font-medium text-stone-700">
-                            Category
-                            <input
-                                value={addForm.category}
-                                onChange={(e) => setAddForm({ ...addForm, category: e.target.value })}
-                                className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
-                            />
-                        </label>
-                        <label className="mt-5 block text-sm font-medium text-stone-700">
-                            Price
-                            <input
-                                type="number"
-                                value={addForm.price}
-                                onChange={(e) => setAddForm({ ...addForm, price: e.target.value })}
-                                className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
-                            />
-                        </label>
-                        <label className="mt-5 flex items-center gap-3 text-sm font-medium text-stone-700">
-                            Available to customers
-                            <input
-                                type="checkbox"
-                                checked={addForm.isAvailable}
-                                onChange={(e) => setAddForm({ ...addForm, isAvailable: e.target.checked })}
-                                className="h-4 w-4 accent-emerald-800 rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
-                            />
-                        </label>
-
-                        <label className="mt-5 block text-sm font-medium text-stone-700">
-                            Picture
-                            <input
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-                                className="mt-1.5 block w-full text-sm text-stone-600"
-                            />
-                        </label>
-
-                        <div className="mt-5 flex gap-3">
-                            <button
-                                type="submit"
-                                className="rounded-lg border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 cursor-pointer"
-                            >
-                                Add to menu
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setShowAdd(false)}
-                                className="rounded-lg border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 cursor-pointer"
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </form>
-                )}
 
                 {/* States */}
                 {loading && (
@@ -430,59 +495,62 @@ export default function Dashboard() {
                                             </td>
                                         </tr>
                                     )}
-                                    {menu.map((item) => (
-                                        <tr
-                                            key={item.id}
-                                            className="transition-colors hover:bg-stone-50"
-                                        >
-                                            <td className="px-5 py-4 font-medium text-stone-900">{item.name}</td>
-                                            <td className="px-5 py-4">
-                                                <span className="inline-block rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700">
-                                                    {item.category}
-                                                </span>
-                                            </td>
-                                            <td className="px-5 py-4 font-medium tabular-nums">
-                                                ₦{item.price?.toLocaleString()}
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <span
-                                                    className={
-                                                        item.isAvailable
-                                                            ? "inline-flex items-center gap-2 text-emerald-800"
-                                                            : "inline-flex items-center gap-2 text-amber-700"
-                                                    }
-                                                >
+                                    {menu.map((item, index) => {
+                                        const itemId = item.id || item._id || `item-${index}`;
+                                        return (
+                                            <tr
+                                                key={itemId}
+                                                className="transition-colors hover:bg-stone-50"
+                                            >
+                                                <td className="px-5 py-4 font-medium text-stone-900">{item.name}</td>
+                                                <td className="px-5 py-4">
+                                                    <span className="inline-block rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700">
+                                                        {item.category}
+                                                    </span>
+                                                </td>
+                                                <td className="px-5 py-4 font-medium tabular-nums">
+                                                    ₦{item.price?.toLocaleString()}
+                                                </td>
+                                                <td className="px-5 py-4">
                                                     <span
                                                         className={
                                                             item.isAvailable
-                                                                ? "h-2 w-2 rounded-full bg-emerald-600"
-                                                                : "h-2 w-2 rounded-full bg-amber-500"
+                                                                ? "inline-flex items-center gap-2 text-emerald-800"
+                                                                : "inline-flex items-center gap-2 text-amber-700"
                                                         }
-                                                    />
-                                                    {item.isAvailable ? "Available" : "Unavailable"}
-                                                </span>
-                                            </td>
-                                            <td className="max-w-xs truncate px-5 py-4 text-stone-500">
-                                                {item.description}
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <div className="flex justify-end gap-2">
-                                                    <button
-                                                        onClick={() => handleEdit(item)}
-                                                        className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:border-emerald-700 hover:text-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 cursor-pointer"
                                                     >
-                                                        Edit
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(item.id)}
-                                                        className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 cursor-pointer"
-                                                    >
-                                                        Delete
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                        <span
+                                                            className={
+                                                                item.isAvailable
+                                                                    ? "h-2 w-2 rounded-full bg-emerald-600"
+                                                                    : "h-2 w-2 rounded-full bg-amber-500"
+                                                            }
+                                                        />
+                                                        {item.isAvailable ? "Available" : "Unavailable"}
+                                                    </span>
+                                                </td>
+                                                <td className="max-w-xs truncate px-5 py-4 text-stone-500">
+                                                    {item.description}
+                                                </td>
+                                                <td className="px-5 py-4">
+                                                    <div className="flex justify-end gap-2">
+                                                        <button
+                                                            onClick={() => handleEdit(item)}
+                                                            className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:border-emerald-700 hover:text-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 cursor-pointer"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(item.id || item._id || "")}
+                                                            className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 cursor-pointer"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
