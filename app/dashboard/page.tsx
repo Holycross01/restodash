@@ -161,7 +161,7 @@ export default function Dashboard() {
     console.log("imageFile:", imageFile);
 
     return (
-        <div className="min-h-screen bg-stone-100 text-stone-900">
+        <div className="min-h-screen bg-stone-100 text-stone-900 z-60">
             {/* Top bar */}
             <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/90 backdrop-blur">
                 <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
@@ -183,16 +183,35 @@ export default function Dashboard() {
                 </div>
             </header>
 
-            <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-                {editingItem ? (
-                    /* ───── Edit form (replaces entire dashboard) ───── */
+            {/* Edit Modal (Overlay in front of the page) */}
+            {editingItem && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+                    onClick={() => setEditingItem(null)}
+                >
                     <form
                         onSubmit={handleUpdate}
-                        className="mx-auto max-w-lg overflow-hidden rounded-xl border border-emerald-200 bg-white shadow-sm"
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full max-w-lg overflow-hidden rounded-xl border border-stone-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150"
                     >
                         <div className="border-l-4 border-emerald-800 p-5 sm:p-6">
-                            <p className="text-sm text-stone-500">Editing</p>
-                            <h3 className="text-xl font-semibold tracking-tight">{editingItem.name}</h3>
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800">Editing Menu Item</p>
+                                    <h3 className="mt-1 text-xl font-semibold tracking-tight text-stone-900">{editingItem.name}</h3>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setEditingItem(null)}
+                                    className="rounded-lg p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-600 cursor-pointer"
+                                    aria-label="Close modal"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                </button>
+                            </div>
 
                             <label className="mt-5 block text-sm font-medium text-stone-700">
                                 Name
@@ -237,13 +256,7 @@ export default function Dashboard() {
                                 />
                             </label>
 
-                            <div className="mt-5 flex flex-wrap gap-3">
-                                <button
-                                    type="submit"
-                                    className="rounded-lg bg-emerald-800 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 cursor-pointer"
-                                >
-                                    Save changes
-                                </button>
+                            <div className="mt-6 flex flex-wrap justify-end gap-3">
                                 <button
                                     type="button"
                                     onClick={() => setEditingItem(null)}
@@ -251,224 +264,229 @@ export default function Dashboard() {
                                 >
                                     Cancel
                                 </button>
+                                <button
+                                    type="submit"
+                                    className="rounded-lg bg-emerald-800 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 cursor-pointer"
+                                >
+                                    Save changes
+                                </button>
                             </div>
                         </div>
                     </form>
-                ) : (
-                    /* ───── Dashboard content ───── */
-                    <>
-                        {/* Page heading + summary */}
-                        <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-                            <div>
-                                <h2 className="text-3xl font-semibold tracking-tight">Your menu</h2>
-                                <p className="mt-1 text-sm text-stone-500">
-                                    Review, edit and remove the dishes customers see.
-                                </p>
-                            </div>
+                </div>
+            )}
 
+            <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+                {/* Page heading + summary */}
+                <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h2 className="text-3xl font-semibold tracking-tight">Your menu</h2>
+                        <p className="mt-1 text-sm text-stone-500">
+                            Review, edit and remove the dishes customers see.
+                        </p>
+                    </div>
+
+                    <button
+                        onClick={() => setShowAdd(true)}
+                        className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:border-emerald-700 hover:text-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 cursor-pointer"
+                    >
+                        Add item
+                    </button>
+
+                    {!loading && !error && (
+                        <dl className="flex divide-x divide-stone-300 overflow-hidden rounded-xl border border-stone-200 bg-white">
+                            <div className="px-5 py-3">
+                                <dt className="text-xs text-stone-500">Total items</dt>
+                                <dd className="text-2xl font-semibold tabular-nums">{menu.length}</dd>
+                            </div>
+                            <div className="px-5 py-3">
+                                <dt className="text-xs text-stone-500">Available</dt>
+                                <dd className="text-2xl font-semibold tabular-nums text-emerald-800">
+                                    {menu.filter((item) => item.isAvailable).length}
+                                </dd>
+                            </div>
+                            <div className="px-5 py-3">
+                                <dt className="text-xs text-stone-500">Unavailable</dt>
+                                <dd className="text-2xl font-semibold tabular-nums text-amber-700">
+                                    {menu.filter((item) => !item.isAvailable).length}
+                                </dd>
+                            </div>
+                        </dl>
+                    )}
+                </div>
+
+                {showAdd && (
+                    <form onSubmit={handleAdd} className="mb-8 rounded-xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6 w-100">
+                        <h3 className="text-xl font-semibold tracking-tight">New menu item</h3>
+
+                        <label className="mt-5 block text-sm font-medium text-stone-700">
+                            Name
+                            <input
+                                value={addForm.name}
+                                onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                                className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                            />
+                        </label>
+                        <label className="mt-5 block text-sm font-medium text-stone-700">
+                            Description
+                            <input
+                                value={addForm.description}
+                                onChange={(e) => setAddForm({ ...addForm, description: e.target.value })}
+                                className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                            />
+                        </label>
+                        <label className="mt-5 block text-sm font-medium text-stone-700">
+                            Category
+                            <input
+                                value={addForm.category}
+                                onChange={(e) => setAddForm({ ...addForm, category: e.target.value })}
+                                className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                            />
+                        </label>
+                        <label className="mt-5 block text-sm font-medium text-stone-700">
+                            Price
+                            <input
+                                type="number"
+                                value={addForm.price}
+                                onChange={(e) => setAddForm({ ...addForm, price: e.target.value })}
+                                className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                            />
+                        </label>
+                        <label className="mt-5 flex items-center gap-3 text-sm font-medium text-stone-700">
+                            Available to customers
+                            <input
+                                type="checkbox"
+                                checked={addForm.isAvailable}
+                                onChange={(e) => setAddForm({ ...addForm, isAvailable: e.target.checked })}
+                                className="h-4 w-4 accent-emerald-800 rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                            />
+                        </label>
+
+                        <label className="mt-5 block text-sm font-medium text-stone-700">
+                            Picture
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                                className="mt-1.5 block w-full text-sm text-stone-600"
+                            />
+                        </label>
+
+                        <div className="mt-5 flex gap-3">
                             <button
-                                onClick={() => setShowAdd(true)}
-                                className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:border-emerald-700 hover:text-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 cursor-pointer"
+                                type="submit"
+                                className="rounded-lg border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 cursor-pointer"
                             >
-                                Add item
+                                Add to menu
                             </button>
-
-                            {!loading && !error && (
-                                <dl className="flex divide-x divide-stone-300 overflow-hidden rounded-xl border border-stone-200 bg-white">
-                                    <div className="px-5 py-3">
-                                        <dt className="text-xs text-stone-500">Total items</dt>
-                                        <dd className="text-2xl font-semibold tabular-nums">{menu.length}</dd>
-                                    </div>
-                                    <div className="px-5 py-3">
-                                        <dt className="text-xs text-stone-500">Available</dt>
-                                        <dd className="text-2xl font-semibold tabular-nums text-emerald-800">
-                                            {menu.filter((item) => item.isAvailable).length}
-                                        </dd>
-                                    </div>
-                                    <div className="px-5 py-3">
-                                        <dt className="text-xs text-stone-500">Unavailable</dt>
-                                        <dd className="text-2xl font-semibold tabular-nums text-amber-700">
-                                            {menu.filter((item) => !item.isAvailable).length}
-                                        </dd>
-                                    </div>
-                                </dl>
-                            )}
+                            <button
+                                type="button"
+                                onClick={() => setShowAdd(false)}
+                                className="rounded-lg border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 cursor-pointer"
+                            >
+                                Cancel
+                            </button>
                         </div>
+                    </form>
+                )}
 
-                        {showAdd && (
-                            <form onSubmit={handleAdd} className="mb-8 rounded-xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6 w-100">
-                                <h3 className="text-xl font-semibold tracking-tight">New menu item</h3>
+                {/* States */}
+                {loading && (
+                    <div className="rounded-xl border border-stone-200 bg-white p-6">
+                        <p className="text-sm text-stone-500">Loading your menu…</p>
+                        <div className="mt-4 space-y-3">
+                            {[0, 1, 2, 3].map((n) => (
+                                <div key={n} className="h-10 animate-pulse rounded-lg bg-stone-100" />
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {error && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+                        {error}
+                    </div>
+                )}
 
-                                <label className="mt-5 block text-sm font-medium text-stone-700">
-                                    Name
-                                    <input
-                                        value={addForm.name}
-                                        onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
-                                        className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
-                                    />
-                                </label>
-                                <label className="mt-5 block text-sm font-medium text-stone-700">
-                                    Description
-                                    <input
-                                        value={addForm.description}
-                                        onChange={(e) => setAddForm({ ...addForm, description: e.target.value })}
-                                        className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
-                                    />
-                                </label>
-                                <label className="mt-5 block text-sm font-medium text-stone-700">
-                                    Category
-                                    <input
-                                        value={addForm.category}
-                                        onChange={(e) => setAddForm({ ...addForm, category: e.target.value })}
-                                        className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
-                                    />
-                                </label>
-                                <label className="mt-5 block text-sm font-medium text-stone-700">
-                                    Price
-                                    <input
-                                        type="number"
-                                        value={addForm.price}
-                                        onChange={(e) => setAddForm({ ...addForm, price: e.target.value })}
-                                        className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
-                                    />
-                                </label>
-                                <label className="mt-5 flex items-center gap-3 text-sm font-medium text-stone-700">
-                                    Available to customers
-                                    <input
-                                        type="checkbox"
-                                        checked={addForm.isAvailable}
-                                        onChange={(e) => setAddForm({ ...addForm, isAvailable: e.target.checked })}
-                                        className="h-4 w-4 accent-emerald-800 rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
-                                    />
-                                </label>
-
-                                <label className="mt-5 block text-sm font-medium text-stone-700">
-                                    Picture
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-                                        className="mt-1.5 block w-full text-sm text-stone-600"
-                                    />
-                                </label>
-
-                                <div className="mt-5 flex gap-3">
-                                    <button
-                                        type="submit"
-                                        className="rounded-lg border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 cursor-pointer"
-                                    >
-                                        Add to menu
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowAdd(false)}
-                                        className="rounded-lg border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 cursor-pointer"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </form>
-                        )}
-
-                        {/* States */}
-                        {loading && (
-                            <div className="rounded-xl border border-stone-200 bg-white p-6">
-                                <p className="text-sm text-stone-500">Loading your menu…</p>
-                                <div className="mt-4 space-y-3">
-                                    {[0, 1, 2, 3].map((n) => (
-                                        <div key={n} className="h-10 animate-pulse rounded-lg bg-stone-100" />
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                        {error && (
-                            <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-                                {error}
-                            </div>
-                        )}
-
-                        {/* Menu table */}
-                        {!loading && !error && (
-                            <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
-                                <div className="overflow-x-auto">
-                                    <table className="w-full min-w-[760px] text-left text-sm">
-                                        <thead className="border-b border-stone-200 bg-stone-50 text-stone-500">
-                                            <tr>
-                                                <th className="px-5 py-3 font-medium">Name</th>
-                                                <th className="px-5 py-3 font-medium">Category</th>
-                                                <th className="px-5 py-3 font-medium">Price</th>
-                                                <th className="px-5 py-3 font-medium">Status</th>
-                                                <th className="px-5 py-3 font-medium">Description</th>
-                                                <th className="px-5 py-3 text-right font-medium">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-stone-100">
-                                            {menu.length === 0 && (
-                                                <tr>
-                                                    <td colSpan={6} className="px-5 py-12 text-center text-stone-500">
-                                                        No menu items yet.
-                                                    </td>
-                                                </tr>
-                                            )}
-                                            {menu.map((item) => (
-                                                <tr
-                                                    key={item.id}
-                                                    className="transition-colors hover:bg-stone-50"
+                {/* Menu table */}
+                {!loading && !error && (
+                    <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[760px] text-left text-sm">
+                                <thead className="border-b border-stone-200 bg-stone-50 text-stone-500">
+                                    <tr>
+                                        <th className="px-5 py-3 font-medium">Name</th>
+                                        <th className="px-5 py-3 font-medium">Category</th>
+                                        <th className="px-5 py-3 font-medium">Price</th>
+                                        <th className="px-5 py-3 font-medium">Status</th>
+                                        <th className="px-5 py-3 font-medium">Description</th>
+                                        <th className="px-5 py-3 text-right font-medium">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-stone-100">
+                                    {menu.length === 0 && (
+                                        <tr>
+                                            <td colSpan={6} className="px-5 py-12 text-center text-stone-500">
+                                                No menu items yet.
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {menu.map((item) => (
+                                        <tr
+                                            key={item.id}
+                                            className="transition-colors hover:bg-stone-50"
+                                        >
+                                            <td className="px-5 py-4 font-medium text-stone-900">{item.name}</td>
+                                            <td className="px-5 py-4">
+                                                <span className="inline-block rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700">
+                                                    {item.category}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-4 font-medium tabular-nums">
+                                                ₦{item.price?.toLocaleString()}
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <span
+                                                    className={
+                                                        item.isAvailable
+                                                            ? "inline-flex items-center gap-2 text-emerald-800"
+                                                            : "inline-flex items-center gap-2 text-amber-700"
+                                                    }
                                                 >
-                                                    <td className="px-5 py-4 font-medium text-stone-900">{item.name}</td>
-                                                    <td className="px-5 py-4">
-                                                        <span className="inline-block rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700">
-                                                            {item.category}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-5 py-4 font-medium tabular-nums">
-                                                        ₦{item.price?.toLocaleString()}
-                                                    </td>
-                                                    <td className="px-5 py-4">
-                                                        <span
-                                                            className={
-                                                                item.isAvailable
-                                                                    ? "inline-flex items-center gap-2 text-emerald-800"
-                                                                    : "inline-flex items-center gap-2 text-amber-700"
-                                                            }
-                                                        >
-                                                            <span
-                                                                className={
-                                                                    item.isAvailable
-                                                                        ? "h-2 w-2 rounded-full bg-emerald-600"
-                                                                        : "h-2 w-2 rounded-full bg-amber-500"
-                                                                }
-                                                            />
-                                                            {item.isAvailable ? "Available" : "Unavailable"}
-                                                        </span>
-                                                    </td>
-                                                    <td className="max-w-xs truncate px-5 py-4 text-stone-500">
-                                                        {item.description}
-                                                    </td>
-                                                    <td className="px-5 py-4">
-                                                        <div className="flex justify-end gap-2">
-                                                            <button
-                                                                onClick={() => handleEdit(item)}
-                                                                className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:border-emerald-700 hover:text-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 cursor-pointer"
-                                                            >
-                                                                Edit
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDelete(item.id)}
-                                                                className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 cursor-pointer"
-                                                            >
-                                                                Delete
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        )}
-                    </>
+                                                    <span
+                                                        className={
+                                                            item.isAvailable
+                                                                ? "h-2 w-2 rounded-full bg-emerald-600"
+                                                                : "h-2 w-2 rounded-full bg-amber-500"
+                                                        }
+                                                    />
+                                                    {item.isAvailable ? "Available" : "Unavailable"}
+                                                </span>
+                                            </td>
+                                            <td className="max-w-xs truncate px-5 py-4 text-stone-500">
+                                                {item.description}
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <div className="flex justify-end gap-2">
+                                                    <button
+                                                        onClick={() => handleEdit(item)}
+                                                        className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:border-emerald-700 hover:text-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 cursor-pointer"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(item.id)}
+                                                        className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 cursor-pointer"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 )}
             </main>
         </div>
